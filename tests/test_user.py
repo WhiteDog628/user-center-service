@@ -1,5 +1,39 @@
 import allure
 
+from tests.allure_utils import attach_json
+
+
+def attach_request(method, path, headers=None):
+    """
+    将接口请求信息添加到 Allure 报告。
+
+    Authorization 等敏感字段会由 attach_json
+    自动进行脱敏处理。
+    """
+
+    attach_json(
+        "请求信息",
+        {
+            "method": method,
+            "path": path,
+            "headers": headers
+        }
+    )
+
+
+def attach_response(response):
+    """
+    将 HTTP 状态码和接口响应添加到 Allure 报告。
+    """
+
+    attach_json(
+        "响应结果",
+        {
+            "status_code": response.status_code,
+            "body": response.get_json()
+        }
+    )
+
 
 @allure.epic("用户中心接口自动化")
 @allure.feature("用户模块")
@@ -10,13 +44,23 @@ def test_get_current_user_success(
     client,
     access_token
 ):
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+
     with allure.step("携带有效 Access Token 请求当前用户接口"):
+        attach_request(
+            "GET",
+            "/api/v1/users/me",
+            headers=headers
+        )
+
         response = client.get(
             "/api/v1/users/me",
-            headers={
-                "Authorization": f"Bearer {access_token}"
-            }
+            headers=headers
         )
+
+        attach_response(response)
 
     with allure.step("校验 HTTP 状态码和业务响应"):
         assert response.status_code == 200
@@ -36,9 +80,16 @@ def test_get_current_user_success(
 @allure.title("未携带 Token 访问受保护接口失败")
 def test_get_current_user_without_token(client):
     with allure.step("不携带 Authorization Header 请求当前用户接口"):
+        attach_request(
+            "GET",
+            "/api/v1/users/me"
+        )
+
         response = client.get(
             "/api/v1/users/me"
         )
+
+        attach_response(response)
 
     with allure.step("校验未授权访问响应"):
         assert response.status_code == 401
@@ -54,13 +105,23 @@ def test_get_current_user_without_token(client):
 @allure.severity(allure.severity_level.BLOCKER)
 @allure.title("携带非法 Token 访问受保护接口失败")
 def test_get_current_user_with_invalid_token(client):
+    headers = {
+        "Authorization": "Bearer invalid_token_123"
+    }
+
     with allure.step("携带格式非法的 Access Token 请求当前用户接口"):
+        attach_request(
+            "GET",
+            "/api/v1/users/me",
+            headers=headers
+        )
+
         response = client.get(
             "/api/v1/users/me",
-            headers={
-                "Authorization": "Bearer invalid_token_123"
-            }
+            headers=headers
         )
+
+        attach_response(response)
 
     with allure.step("校验非法 Token 响应"):
         assert response.status_code == 422
