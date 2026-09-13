@@ -76,6 +76,10 @@ jobs:
       - name: Run Flask test-client tests
         run: |
           pytest tests -v \
+            --cov=app \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=90 \
             --alluredir=allure-results \
             --clean-alluredir
 
@@ -121,6 +125,7 @@ jobs:
           name: user-center-test-artifacts
           path: |
             allure-results
+            coverage.xml
             test-server.log
           if-no-files-found: warn
           retention-days: 7
