@@ -15,22 +15,31 @@ def app():
 
     使用 TestConfig，
     数据库连接指向 user_center_service_test。
+
+    测试开始前确保所需表结构存在；
+    测试结束后只清理测试数据，不删除表结构。
     """
 
     app = create_app(TestConfig)
 
     with app.app_context():
-        # 测试开始前重建测试数据库表，
-        # 保证测试环境结构确定且干净。
-        db.drop_all()
+        # 确保测试数据库表结构存在
         db.create_all()
+
+        # 清理可能残留的历史测试数据
+        db.session.query(User).delete()
+        db.session.commit()
+        db.session.remove()
 
     yield app
 
     with app.app_context():
-        # 整个测试会话结束后清理测试数据库。
+        # 测试结束后只清理数据，
+        # 不再执行 db.drop_all()，
+        # 避免影响共用测试库的 Test Server。
+        db.session.query(User).delete()
+        db.session.commit()
         db.session.remove()
-        db.drop_all()
 
 
 @pytest.fixture
@@ -39,12 +48,13 @@ def client(app):
     创建 Flask 测试客户端。
 
     每个测试函数执行前清空 users 表，
-    保证测试用例之间互不污染。
+    保证测试用例之间相互独立。
     """
 
     with app.app_context():
         db.session.query(User).delete()
         db.session.commit()
+        db.session.remove()
 
     with app.test_client() as test_client:
         yield test_client

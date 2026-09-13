@@ -32,29 +32,36 @@ def base_url():
 )
 def clean_integration_test_data():
     """
-    HTTP 集成测试数据清理。
+    HTTP 集成测试数据库初始化与数据清理。
 
     测试开始前：
-        清空测试数据库中的 users 数据。
+        1. 确保测试数据库表结构存在；
+        2. 清空 users 表中的历史测试数据。
 
     测试结束后：
-        再次清空 users 数据。
+        再次清空 users 表中的测试数据。
 
-    只清理数据，不删除表结构，
-    避免影响正在运行的 Test Server。
+    保留表结构，避免影响正在运行的 Test Server。
     """
 
     test_app = create_app(TestConfig)
 
-    # 测试开始前清理历史数据
     with test_app.app_context():
+        # 确保测试库表结构存在。
+        # 即使此前其他测试执行了 db.drop_all()，
+        # 集成测试也能够自行恢复所需表结构。
+        db.create_all()
+
+        # 清理历史测试数据
         db.session.query(User).delete()
         db.session.commit()
+        db.session.remove()
 
     yield
 
-    # 整个测试会话结束后再次清理
     with test_app.app_context():
+        # 集成测试结束后清理本轮测试数据，
+        # 但不删除数据库表结构。
         db.session.query(User).delete()
         db.session.commit()
         db.session.remove()
